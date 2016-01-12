@@ -1,0 +1,64 @@
+package main
+
+import (
+    "fmt"
+    "time"
+    "log"
+    "os"
+)
+    //任务数
+    const Tasks int = 23
+    //最多4个同时运行
+    const MAX int = 4
+
+    var pool = make(chan bool, MAX)  //工作池
+    var result_chan = make(chan string, MAX)  //结果池
+
+func task_dispatch(urls []string,pool chan bool) {
+    for i:=0;i<len(urls);i++{
+      print("waiting pool ...")
+      <-pool
+      fmt.Println("distpatch task:",i)
+      go worker(urls[i],result_chan)
+    }
+}
+    
+func worker(url string,result_chan chan string){
+    //模拟下载...
+    time.Sleep(time.Second * 2)
+    result_chan <- url  
+}    
+
+func main() {
+
+    logfile,err := os.OpenFile("test_chan1.log",os.O_RDWR|os.O_CREATE|os.O_APPEND,0);  
+    if err!=nil {  
+        fmt.Printf("%s\r\n",err.Error());  
+        os.Exit(-1);  
+    }  
+    defer logfile.Close();  
+    logger := log.New(logfile,"\r\n",log.Ldate|log.Ltime|log.Llongfile);  
+    logger.Println("hello");  
+//    logger.Panic("panic"); 
+//    logger.Fatal("fatal");
+
+    urls := make([]string, Tasks)   //任务数
+
+    for index := range urls {
+        urls[index]=fmt.Sprintf("url--**%d ",index)
+        //println(urls[index])
+    }
+
+    for i:=0;i<MAX;i++{    //go 池
+        pool<-true
+    }
+    
+    go task_dispatch(urls,pool)
+    
+    for i:=0;i<len(urls);i++{
+        r:=<-result_chan
+        fmt.Println("\n",i," got result:",r)
+        pool<-true
+    }
+ 
+}
