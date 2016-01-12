@@ -1,0 +1,108 @@
+package main
+
+import (
+    "fmt"
+    "io/ioutil"
+    "os"
+    "time"
+    "strings"
+    json "encoding/json"
+    )
+
+type JsonStruct struct{
+}    
+ 
+func NewJsonStruct() *JsonStruct{
+    return &JsonStruct{}
+}
+
+func (self *JsonStruct) Load(filename string,v interface{}){
+        
+    fi,err := os.Open(filename)   
+    if err != nil{panic(err)}   
+    defer fi.Close()   
+    data,err := ioutil.ReadAll(fi) 
+    if err != nil{panic(err)}   
+     
+    datajson:=[]byte(data)
+    err = json.Unmarshal(datajson,v)
+    if err!=nil{return}  
+   
+}    
+
+func main() {
+
+    the_day:=time.Now().AddDate(0,0,-106)
+    arr:=strings.Split(the_day.Format("2006-01-02"),"-")
+    y,m,d:=arr[0],arr[1],arr[2]
+    fileName := "downloaded_"+y+m+d+".txt"
+    filedata , err := ioutil.ReadFile(fileName)
+    if err!=nil{
+        fmt.Println(err.Error())   
+        return
+    }
+    downloaded_file:=strings.Split(string(filedata),"\n")
+    
+    var all_file map[string]bool
+    all_file=make(map[string]bool)
+    
+    JsonParse:=NewJsonStruct()
+    var dat4 map[string]map[string]interface{}
+    var task map[string]map[string]interface{}
+        task=make(map[string]map[string]interface{})
+    JsonParse.Load("log_config.txt",&dat4)
+    
+     for k,_ :=range dat4 {
+        if strings.HasPrefix(k,"log_" ) {
+            path_local:=dat4[k]["path_local"].(string)
+            logname:=dat4[k]["logname"].(string)
+
+            logname=strings.Replace(logname,"[Y]",y,-1)
+            logname=strings.Replace(logname,"[m]",m,-1)
+            logname=strings.Replace(logname,"[d]",d,-1)
+            
+            var s,tmp string
+            
+            if  strings.Contains(logname,"[H]"){   
+               s=""
+               for i:=0;i<24 ; i++ {
+                 tmp=strings.Replace(logname,"[H]",fmt.Sprintf("%02d",i),-1)
+                 s=k+","+path_local+","+tmp
+                 all_file[s]=false
+                 task[s]=dat4[k]
+               }
+             } else {
+               s=k+","+path_local+","+logname
+               all_file[s]=false
+               task[s]=dat4[k]
+           }
+       }  
+     }
+     for _,d:= range downloaded_file {
+        all_file[d]=true  
+        delete(task,d) 
+    //    fmt.Println(d)
+     } 
+     f, err3 := os.Create("comp_all_file.txt")  
+     if err3!=nil{
+        fmt.Println(err3.Error())   
+        return
+     }
+     defer f.Close()
+
+     for t,b:= range all_file {
+           if b!=true {
+  //            fmt.Println(t)
+              f.WriteString(t+"\n")
+           }
+     }    
+     for t,b:= range task {        
+           fmt.Print(t+",")
+           fmt.Println(b)
+     }   
+        
+
+
+
+  
+}
